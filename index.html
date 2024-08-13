@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotel Ambika</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        header, footer {
+            background-color: #333;
+            color: #fff;
+            padding: 1em;
+            text-align: center;
+        }
+        nav a {
+            color: #fff;
+            text-decoration: none;
+            padding: 0.5em 1em;
+        }
+        main {
+            padding: 2em;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 2em;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+        label, input, button, select {
+            margin-bottom: 1em;
+        }
+        button {
+            padding: 0.5em;
+            border: none;
+            background-color: #28a745;
+            color: #fff;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        img.hidden {
+            display: none;
+        }
+        .orders, .admin-actions, .placed-orders, .completed-orders {
+            margin-top: 2em;
+        }
+        .order-item {
+            border-bottom: 1px solid #ddd;
+            padding: 1em 0;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Hotel Ambika</h1>
+        <nav>
+            <a href="#" id="login-link">Login</a>
+            <a href="#" id="admin-link">Admin Panel</a>
+        </nav>
+    </header>
+    <main>
+        <div id="main-content" class="container">
+            <!-- Login Form -->
+            <div id="login-form" class="container">
+                <h2>Login</h2>
+                <form onsubmit="handleLogin(event)">
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" required>
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" required>
+                    <label for="role">Role:</label>
+                    <select id="role">
+                        <option value="customer">Customer</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                    <button type="submit">Login</button>
+                </form>
+            </div>
+
+            <!-- Customer Ordering -->
+            <div id="customer-page" class="container" style="display: none;">
+                <h2>Order Food</h2>
+                <button onclick="showCustomerDetails()">Customer Details</button>
+                <div id="menu"></div>
+                <div id="cart"></div>
+                <div id="order-form" style="display: none;">
+                    <h3>Place Order</h3>
+                    <form onsubmit="handleOrder(event)">
+                        <label for="name">Name:</label>
+                        <input type="text" id="name" required>
+                        <label for="address">Address:</label>
+                        <input type="text" id="address" required>
+                        <label for="mobile">Mobile:</label>
+                        <input type="text" id="mobile" required>
+                        <button type="submit">Place Order</button>
+                    </form>
+                </div>
+                <div id="placed-orders" class="placed-orders" style="display: none;">
+                    <h3>Placed Orders</h3>
+                    <div id="placed-orders-list"></div>
+                    <button onclick="clearPlacedOrders()">Clear Placed Orders</button>
+                </div>
+            </div>
+
+            <!-- Customer Details Section -->
+            <div id="customer-details" class="container" style="display: none;">
+                <h2>Customer Details</h2>
+                <button onclick="backToShopping()">Back to Shopping</button>
+                <form onsubmit="handleSaveDetails(event)">
+                    <label for="customer-email">Email:</label>
+                    <input type="email" id="customer-email" readonly>
+                    <label for="customer-name">Name:</label>
+                    <input type="text" id="customer-name" required>
+                    <label for="customer-mobile">Mobile:</label>
+                    <input type="text" id="customer-mobile" required>
+                    <label for="photo-upload">Upload Photo:</label>
+                    <input type="file" id="photo-upload" accept="image/*" onchange="previewImage(event)">
+                    <img id="photo-preview" class="hidden" style="width: 150px; height: auto;">
+                    <button type="submit">Save</button>
+                    <button type="button" onclick="handleUpdateDetails()">Update</button>
+                </form>
+            </div>
+
+            <!-- Admin Panel -->
+            <div id="admin-panel" class="container" style="display: none;">
+                <h2>Admin Panel</h2>
+                <div class="admin-actions">
+                    <h3>Add New Item</h3>
+                    <form onsubmit="handleAddItem(event)">
+                        <label for="item-name">Item Name:</label>
+                        <input type="text" id="item-name" required>
+                        <label for="item-price">Price:</label>
+                        <input type="number" id="item-price" required>
+                        <label for="item-image">Image URL:</label>
+                        <input type="text" id="item-image" required>
+                        <button type="submit">Add Item</button>
+                    </form>
+                </div>
+                <div class="orders">
+                    <h3>Orders</h3>
+                    <div id="orders-list"></div>
+                </div>
+                <div class="completed-orders" style="margin-top: 2em;">
+                    <h3>Completed Orders</h3>
+                    <div id="completed-orders-list"></div>
+                    <button onclick="clearCompletedOrders()">Clear Completed Orders</button>
+                </div>
+            </div>
+        </div>
+    </main>
+    <footer>
+        <p>&copy; 2024 Food Order Website</p>
+    </footer>
+    <script>
+        // Retrieve data from localStorage
+        const getFromLocalStorage = (key) => JSON.parse(localStorage.getItem(key)) || [];
+        const saveToLocalStorage = (key, data) => localStorage.setItem(key, JSON.stringify(data));
+
+        // Initialize data
+        let menuItems = getFromLocalStorage('menuItems');
+        let orders = getFromLocalStorage('orders');
+        let completedOrders = getFromLocalStorage('completedOrders');
+        let cart = getFromLocalStorage('cart');
+        let customerDetails = getFromLocalStorage('customerDetails') || {};
+
+        // Simulate data if not available
+        if (menuItems.length === 0) {
+            menuItems = [
+                { name: 'Pizza', price: 10, image: 'https://via.placeholder.com/150' },
+                { name: 'Burger', price: 5, image: 'https://via.placeholder.com/150' }
+            ];
+            saveToLocalStorage('menuItems', menuItems);
+        }
+
+        function renderMenu() {
+            const menuDiv = document.getElementById('menu');
+            menuDiv.innerHTML = '';
+            menuItems.forEach((item, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.innerHTML = 
+                    `<h4>${item.name}</h4>
+                    <img src="${item.image}" alt="${item.name}" style="width: 150px;">
+                    <p>$${item.price}</p>
+                    <button onclick="addToCart(${index})">Add to Cart</button>`;
+                menuDiv.appendChild(itemDiv);
+            });
+        }
+
+        function renderCart() {
+            const cartDiv = document.getElementById('cart');
+            cartDiv.innerHTML = '';
+            cart.forEach((item, index) => {
+                cartDiv.innerHTML += 
+                    `<p>${item.name} - $${item.price} <button onclick="removeFromCart(${index})">Remove</button></p>`;
+            });
+            if (cart.length > 0) {
+                document.getElementById('order-form').style.display = 'block';
+            }
+            saveToLocalStorage('cart', cart);
+        }
+
+        function addToCart(index) {
+            cart.push(menuItems[index]);
+            renderCart();
+        }
+
+        function removeFromCart(index) {
+            cart.splice(index, 1);
+            renderCart();
+        }
+
+        function handleLogin(event) {
+            event.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const role = document.getElementById('role').value;
+
+            if (role === 'customer' && email === 'customer@example.com' && password === 'customerpass') {
+                document.getElementById('login-form').style.display = 'none';
+                document.getElementById('customer-page').style.display = 'block';
+                customerDetails.email = email;
+                saveToLocalStorage('customerDetails', customerDetails);
+                renderMenu();
+                renderCart();
+                renderPlacedOrders();
+            } else if (role === 'admin' && email === 'admin@example.com' && password === 'adminpass') {
+                document.getElementById('login-form').style.display = 'none';
+                document.getElementById('admin-panel').style.display = 'block';
+                renderAdminOrders();
+            } else {
+                alert('Invalid login credentials!');
+            }
+        }
+
+        function handleOrder(event) {
+            event.preventDefault();
+            const name = document.getElementById('name').value;
+            const address = document.getElementById('address').value;
+            const mobile = document.getElementById('mobile').value;
+            const orderDetails = { name, address, mobile, items: cart };
+            orders.push(orderDetails);
+            cart = [];
+            saveToLocalStorage('orders', orders);
+            saveToLocalStorage('cart', cart);
+            renderCart();
+            renderPlacedOrders();
+            alert('Order placed successfully!');
+        }
+
+        function renderPlacedOrders() {
+            const placedOrdersList = document.getElementById('placed-orders-list');
+            placedOrdersList.innerHTML = '';
+            orders.forEach((order, index) => {
+                const orderDiv = document.createElement('div');
+                orderDiv.className = 'order-item';
+                orderDiv.innerHTML = `
+                    <p>Name: ${order.name}</p>
+                    <p>Address: ${order.address}</p>
+                    <p>Mobile: ${order.mobile}</p>
+                    <p>Items:</p>
+                    <ul>
+                        ${order.items.map(item => `<li>${item.name} - $${item.price}</li>`).join('')}
+                    </ul>
+                    <button onclick="markAsCompleted(${index})">Complete</button>
+                `;
+                placedOrdersList.appendChild(orderDiv);
+            });
+            if (orders.length > 0) {
+                document.getElementById('placed-orders').style.display = 'block';
+            } else {
+                document.getElementById('placed-orders').style.display = 'none';
+            }
+        }
+
+        function markAsCompleted(index) {
+            completedOrders.push(orders[index]);
+            orders.splice(index, 1);
+            saveToLocalStorage('orders', orders);
+            saveToLocalStorage('completedOrders', completedOrders);
+            renderPlacedOrders();
+            renderCompletedOrders();
+        }
+
+        function renderCompletedOrders() {
+            const completedOrdersList = document.getElementById('completed-orders-list');
+            completedOrdersList.innerHTML = '';
+            completedOrders.forEach(order => {
+                const orderDiv = document.createElement('div');
+                orderDiv.className = 'order-item';
+                orderDiv.innerHTML = `
+                    <p>Name: ${order.name}</p>
+                    <p>Address: ${order.address}</p>
+                    <p>Mobile: ${order.mobile}</p>
+                    <p>Items:</p>
+                    <ul>
+                        ${order.items.map(item => `<li>${item.name} - $${item.price}</li>`).join('')}
+                    </ul>
+                `;
+                completedOrdersList.appendChild(orderDiv);
+            });
+        }
+
+        function clearPlacedOrders() {
+            orders = [];
+            saveToLocalStorage('orders', orders);
+            renderPlacedOrders();
+        }
+
+        function clearCompletedOrders() {
+            completedOrders = [];
+            saveToLocalStorage('completedOrders', completedOrders);
+            renderCompletedOrders();
+        }
+
+        function showCustomerDetails() {
+            document.getElementById('customer-details').style.display = 'block';
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('cart').style.display = 'none';
+            document.getElementById('order-form').style.display = 'none';
+            document.getElementById('placed-orders').style.display = 'none';
+            populateCustomerDetails();
+        }
+
+        function backToShopping() {
+            document.getElementById('customer-details').style.display = 'none';
+            document.getElementById('menu').style.display = 'block';
+            document.getElementById('cart').style.display = 'block';
+            document.getElementById('order-form').style.display = cart.length > 0 ? 'block' : 'none';
+            document.getElementById('placed-orders').style.display = orders.length > 0 ? 'block' : 'none';
+        }
+
+        function handleSaveDetails(event) {
+            event.preventDefault();
+            const name = document.getElementById('customer-name').value;
+            const mobile = document.getElementById('customer-mobile').value;
+            const email = document.getElementById('customer-email').value;
+
+            if (document.getElementById('photo-upload').files.length > 0) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    customerDetails.photo = e.target.result;
+                    customerDetails.name = name;
+                    customerDetails.mobile = mobile;
+                    customerDetails.email = email;
+                    saveToLocalStorage('customerDetails', customerDetails);
+                    alert('Details saved successfully!');
+                };
+                reader.readAsDataURL(document.getElementById('photo-upload').files[0]);
+            } else {
+                customerDetails.name = name;
+                customerDetails.mobile = mobile;
+                customerDetails.email = email;
+                saveToLocalStorage('customerDetails', customerDetails);
+                alert('Details saved successfully!');
+            }
+        }
+
+        function handleUpdateDetails() {
+            document.getElementById('customer-name').value = customerDetails.name || '';
+            document.getElementById('customer-mobile').value = customerDetails.mobile || '';
+            document.getElementById('customer-email').value = customerDetails.email || '';
+            if (customerDetails.photo) {
+                const photoPreview = document.getElementById('photo-preview');
+                photoPreview.src = customerDetails.photo;
+                photoPreview.classList.remove('hidden');
+            }
+        }
+
+        function previewImage(event) {
+            const reader = new FileReader();
+            reader.onload = function () {
+                const photoPreview = document.getElementById('photo-preview');
+                photoPreview.src = reader.result;
+                photoPreview.classList.remove('hidden');
+            };
+            reader.readAsDataURL(event.target.files[0]);
+        }
+
+        function populateCustomerDetails() {
+            document.getElementById('customer-email').value = customerDetails.email || '';
+            document.getElementById('customer-name').value = customerDetails.name || '';
+            document.getElementById('customer-mobile').value = customerDetails.mobile || '';
+            if (customerDetails.photo) {
+                const photoPreview = document.getElementById('photo-preview');
+                photoPreview.src = customerDetails.photo;
+                photoPreview.classList.remove('hidden');
+            }
+        }
+
+        function handleAddItem(event) {
+            event.preventDefault();
+            const name = document.getElementById('item-name').value;
+            const price = document.getElementById('item-price').value;
+            const image = document.getElementById('item-image').value;
+            menuItems.push({ name, price, image });
+            saveToLocalStorage('menuItems', menuItems);
+            renderMenu();
+        }
+
+        function renderAdminOrders() {
+            const ordersList = document.getElementById('orders-list');
+            ordersList.innerHTML = '';
+            orders.forEach((order, index) => {
+                const orderDiv = document.createElement('div');
+                orderDiv.className = 'order-item';
+                orderDiv.innerHTML = `
+                    <p>Name: ${order.name}</p>
+                    <p>Address: ${order.address}</p>
+                    <p>Mobile: ${order.mobile}</p>
+                    <p>Items:</p>
+                    <ul>
+                        ${order.items.map(item => `<li>${item.name} - $${item.price}</li>`).join('')}
+                    </ul>
+                    <button onclick="markAsCompleted(${index})">Complete</button>
+                `;
+                ordersList.appendChild(orderDiv);
+            });
+        }
+    </script>
+</body>
+</html>
